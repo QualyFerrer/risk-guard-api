@@ -3,10 +3,8 @@ package com.cesar.riskguard.entity;
 import com.cesar.riskguard.enums.TransactionType;
 import jakarta.persistence.*;
 import org.hibernate.resource.transaction.spi.TransactionStatus;
-import org.springframework.aot.generate.GeneratedTypeReference;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
