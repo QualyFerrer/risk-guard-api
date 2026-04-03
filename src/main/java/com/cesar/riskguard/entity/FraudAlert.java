@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
 
+@Entity
+@Table(name = "fraud_alerts")
 public class FraudAlert {
 
     @Id

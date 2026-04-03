@@ -2,13 +2,13 @@ package com.cesar.riskguard.entity;
 
 import com.cesar.riskguard.enums.TransactionType;
 import jakarta.persistence.*;
-import org.hibernate.resource.transaction.spi.TransactionStatus;
+import com.cesar.riskguard.enums.TransactionStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "tb_transactions")
+@Table(name = "transactions")
 public class Transaction {
 
     @Id
