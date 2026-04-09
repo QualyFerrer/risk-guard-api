@@ -1,0 +1,95 @@
+package com.cesar.riskguard.service;
+
+import com.cesar.riskguard.dto.TransactionRequestDTO;
+import com.cesar.riskguard.dto.TransactionResponseDTO;
+import com.cesar.riskguard.entity.FraudAlert;
+import com.cesar.riskguard.entity.Transaction;
+import com.cesar.riskguard.entity.User;
+import com.cesar.riskguard.enums.TransactionStatus;
+import com.cesar.riskguard.enums.TransactionType;
+import com.cesar.riskguard.fraud.FraudAnalyzer;
+import com.cesar.riskguard.fraud.FraudResult;
+import com.cesar.riskguard.repository.FraudAlertRepository;
+import com.cesar.riskguard.repository.TransactionRepository;
+import com.cesar.riskguard.repository.UserRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Service
+public class TransactionService {
+    private final FraudAnalyzer fraudAnalyzer;
+    private final UserRepository userRepository;
+    private final TransactionRepository transactionRepository;
+    private final FraudAlertRepository fraudAlertRepository;
+
+    public TransactionService(FraudAnalyzer fraudAnalyzer, UserRepository userRepository,
+                              TransactionRepository transactionRepository, FraudAlertRepository fraudAlertRepository) {
+        this.fraudAnalyzer = fraudAnalyzer;
+        this.userRepository = userRepository;
+        this.transactionRepository = transactionRepository;
+        this.fraudAlertRepository = fraudAlertRepository;
+    }
+
+    @Transactional
+    public TransactionResponseDTO processTransaction(Long userId, TransactionRequestDTO dto) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+
+        BigDecimal amount = BigDecimal.valueOf(dto.getAmount());
+        FraudResult result = fraudAnalyzer.analyze(user, amount);
+
+        TransactionStatus status = TransactionStatus.APPROVED;
+        if (result.getScore() >= 60) {
+            status = TransactionStatus.BLOCKED;
+        } else if (result.getScore() >= 30) {
+            status = TransactionStatus.FLAGGED;
+        }
+
+        Transaction transaction = new Transaction();
+        transaction.setUser(user);
+        transaction.setAmount(amount);
+        transaction.setType(TransactionType.TRANSFER);
+        transaction.setStatus(status);
+        transaction.setDescription(dto.getDescription());
+        transaction.setCreatedAt(LocalDateTime.now());
+
+        transaction = transactionRepository.save(transaction);
+
+        if (result.getScore() > 0) {
+            FraudAlert alert = new FraudAlert();
+            alert.setTransaction(transaction);
+            alert.setUser(user);
+            alert.setRiskScore(result.getScore());
+            alert.setReason(result.getReason());
+            alert.setDetectedAt(LocalDateTime.now());
+            fraudAlertRepository.save(alert);
+        }
+
+        return mapToResponseDTO(transaction, result.getScore());
+    }
+
+    public List<TransactionResponseDTO> findByUserId(Long userId) {
+        return transactionRepository.findByUserId(userId).stream()
+                .map(t -> mapToResponseDTO(t, null))
+                .toList();
+    }
+
+    public List<FraudAlert> getUserAlertHistory(Long userId) {
+        return fraudAlertRepository.findByTransactionUserId(userId);
+    }
+
+    private TransactionResponseDTO mapToResponseDTO(Transaction t, Integer score) {
+        TransactionResponseDTO dto = new TransactionResponseDTO();
+        dto.setId(t.getId());
+        dto.setAmount(t.getAmount().doubleValue());
+        dto.setDescription(t.getDescription());
+        dto.setStatus(t.getStatus());
+        dto.setRiskScore(score);
+        dto.setCreatedAt(t.getCreatedAt());
+        return dto;
+    }
+}

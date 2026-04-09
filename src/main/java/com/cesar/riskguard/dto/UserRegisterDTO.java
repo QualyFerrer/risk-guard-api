@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
+import java.math.BigDecimal;
+
 public class UserRegisterDTO {
 
     @NotBlank
@@ -22,6 +24,8 @@ public class UserRegisterDTO {
     private Double initialBalance;
 
 
+    @NotNull
+    @Positive
     public Double getInitialBalance() {
         return initialBalance;
     }
