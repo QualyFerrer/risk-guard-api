@@ -40,6 +40,11 @@ public class TransactionService {
                 .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
 
         BigDecimal amount = BigDecimal.valueOf(dto.getAmount());
+
+        if (user.getBalance().compareTo(amount) < 0) {
+            throw new RuntimeException("Saldo insuficiente.");
+        }
+
         FraudResult result = fraudAnalyzer.analyze(user, amount);
 
         TransactionStatus status = TransactionStatus.APPROVED;
@@ -49,6 +54,11 @@ public class TransactionService {
             status = TransactionStatus.FLAGGED;
         }
 
+        if (status != TransactionStatus.BLOCKED) {
+            user.setBalance(user.getBalance().subtract(amount));
+            userRepository.save(user);
+        }
+
         Transaction transaction = new Transaction();
         transaction.setUser(user);
         transaction.setAmount(amount);
@@ -56,7 +66,6 @@ public class TransactionService {
         transaction.setStatus(status);
         transaction.setDescription(dto.getDescription());
         transaction.setCreatedAt(LocalDateTime.now());
-
         transaction = transactionRepository.save(transaction);
 
         if (result.getScore() > 0) {
@@ -72,14 +81,14 @@ public class TransactionService {
         return mapToResponseDTO(transaction, result.getScore());
     }
 
+    public List<FraudAlert> getUserAlertHistory(Long userId) {
+        return fraudAlertRepository.findByTransactionUserId(userId);
+    }
+
     public List<TransactionResponseDTO> findByUserId(Long userId) {
         return transactionRepository.findByUserId(userId).stream()
                 .map(t -> mapToResponseDTO(t, null))
                 .toList();
-    }
-
-    public List<FraudAlert> getUserAlertHistory(Long userId) {
-        return fraudAlertRepository.findByTransactionUserId(userId);
     }
 
     private TransactionResponseDTO mapToResponseDTO(Transaction t, Integer score) {
