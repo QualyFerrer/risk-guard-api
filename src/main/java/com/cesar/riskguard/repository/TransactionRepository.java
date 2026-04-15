@@ -10,6 +10,9 @@ import java.util.List;
 @Repository
 public interface TransactionRepository extends JpaRepository <Transaction, Long> {
 
+    Long countByUserId(Long userId);
+
+
     List<Transaction> findByUserId (Long userId);
 
     int countByUserIdAndCreatedAtAfter (Long userId, LocalDateTime since);

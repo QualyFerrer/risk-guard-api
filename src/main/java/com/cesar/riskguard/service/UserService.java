@@ -4,7 +4,10 @@ import com.cesar.riskguard.dto.UserRegisterDTO;
 import com.cesar.riskguard.dto.UserResponseDTO;
 import com.cesar.riskguard.entity.User;
 import com.cesar.riskguard.enums.Role;
+import com.cesar.riskguard.exceptions.BusinessException;
+import com.cesar.riskguard.exceptions.ResourceNotFoundException;
 import com.cesar.riskguard.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -15,21 +18,24 @@ import java.util.List;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository) {
+
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, PasswordEncoder passwordEncoder1) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder1;
     }
 
     public UserResponseDTO register(UserRegisterDTO dto) {
         if (userRepository.existsByEmail(dto.getEmail())) {
-            throw new RuntimeException("Email já cadastrado.");
+            throw new BusinessException("Email já cadastrado.");
         }
 
         User user = new User();
         user.setFullName(dto.getFullName());
         user.setEmail(dto.getEmail());
-        user.setPassword(dto.getPassword());
-        user.setBalance(BigDecimal.valueOf(dto.getInitialBalance().doubleValue()));
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
+        user.setBalance(BigDecimal.valueOf(dto.getInitialBalance()));
         user.setAverageTransactionAmount(BigDecimal.ZERO);
         user.setRole(Role.USER);
         user.setCreatedAt(LocalDateTime.now());
@@ -40,7 +46,7 @@ public class UserService {
 
     public UserResponseDTO findById(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
         return toResponseDTO(user);
     }
 
@@ -57,7 +63,7 @@ public class UserService {
         dto.setFullName(user.getFullName());
         dto.setEmail(user.getEmail());
         dto.setBalance(user.getBalance().doubleValue());
-        dto.setCreatedAt(user.getCreatedAt());
+        dto.setCreatedAt(LocalDateTime.now());
         return dto;
     }
 }

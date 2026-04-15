@@ -7,6 +7,8 @@ import com.cesar.riskguard.entity.Transaction;
 import com.cesar.riskguard.entity.User;
 import com.cesar.riskguard.enums.TransactionStatus;
 import com.cesar.riskguard.enums.TransactionType;
+import com.cesar.riskguard.exceptions.BusinessException;
+import com.cesar.riskguard.exceptions.ResourceNotFoundException;
 import com.cesar.riskguard.fraud.FraudAnalyzer;
 import com.cesar.riskguard.fraud.FraudResult;
 import com.cesar.riskguard.repository.FraudAlertRepository;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -37,12 +40,12 @@ public class TransactionService {
     @Transactional
     public TransactionResponseDTO processTransaction(Long userId, TransactionRequestDTO dto) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
 
         BigDecimal amount = BigDecimal.valueOf(dto.getAmount());
 
         if (user.getBalance().compareTo(amount) < 0) {
-            throw new RuntimeException("Saldo insuficiente.");
+            throw new BusinessException("Saldo insuficiente.");
         }
 
         FraudResult result = fraudAnalyzer.analyze(user, amount);
@@ -56,6 +59,7 @@ public class TransactionService {
 
         if (status != TransactionStatus.BLOCKED) {
             user.setBalance(user.getBalance().subtract(amount));
+            updateAvarageTransacionAmount(user, amount);
             userRepository.save(user);
         }
 
@@ -79,6 +83,21 @@ public class TransactionService {
         }
 
         return mapToResponseDTO(transaction, result.getScore());
+    }
+
+    private void updateAvarageTransacionAmount(User user, BigDecimal newAmount) {
+        long totalTransactions = transactionRepository.countByUserId(user.getId());
+
+
+        BigDecimal currentAvg = user.getAverageTransactionAmount();
+        if (currentAvg == null) currentAvg = BigDecimal.ZERO;
+
+        BigDecimal newAvg = currentAvg
+                .multiply(BigDecimal.valueOf(totalTransactions))
+                .add(newAmount)
+                .divide(BigDecimal.valueOf(totalTransactions + 1), 2, RoundingMode.HALF_UP);
+
+        user.setAverageTransactionAmount(newAvg);
     }
 
     public List<FraudAlert> getUserAlertHistory(Long userId) {
