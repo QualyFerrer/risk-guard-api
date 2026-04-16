@@ -41,7 +41,7 @@ public class JwtService {
 
 
     //Valida se o token é valido e não expirou
-    private boolean isTokenValid(String token) {
+    boolean isTokenValid(String token) {
         try {
             extractClaims(token);
             return true;
