@@ -18,111 +18,136 @@
 
 ## 📌 Sobre o projeto
 
-RiskGuard é uma API REST que analisa transações financeiras em tempo real usando um **motor de pontuação de risco** com 3 regras independentes. Cada transação recebe um score de 0 a 100 e é classificada como `APPROVED`, `FLAGGED` ou `BLOCKED`.
+**RiskGuard** é uma API REST que analisa transações financeiras em tempo real utilizando um **motor de pontuação de risco**.
 
-Desenvolvido como projeto de portfólio para demonstrar habilidades em arquitetura de APIs REST com Spring Boot, segurança com JWT e boas práticas de desenvolvimento backend.
+Cada transação recebe um score de **0 a 100**, sendo classificada como:
+
+* ✅ APPROVED
+* ⚠️ FLAGGED
+* 🚫 BLOCKED
+
+Projeto desenvolvido com foco em demonstrar:
+
+* Arquitetura REST bem estruturada
+* Segurança com JWT
+* Integração com banco relacional
+* Boas práticas de backend
 
 ---
 
-## ⚙️ Como o motor de fraude funciona
+## ⚙️ Motor de fraude
 
-| Regra | Condição | Score |
-|---|---|---|
-| Desvio da média | Valor > 3× a média histórica do usuário | +40 |
-| Ataque de repetição | 5+ transações no último minuto | +80 |
-| Valor crítico | Transação acima de R$ 10.000 | +60 |
+O sistema utiliza regras independentes para calcular o risco:
 
-| Score final | Status |
-|---|---|
-| 0 – 29 | ✅ APPROVED |
-| 30 – 59 | ⚠️ FLAGGED |
+| Regra           | Condição                    | Score |
+| --------------- | --------------------------- | ----- |
+| Desvio da média | Valor > 3× média do usuário | +40   |
+| Alta frequência | 5+ transações em 1 minuto   | +80   |
+| Valor elevado   | Acima de R$ 10.000          | +60   |
+
+### Resultado final
+
+| Score    | Status     |
+| -------- | ---------- |
+| 0 – 29   | ✅ APPROVED |
+| 30 – 59  | ⚠️ FLAGGED |
 | 60 – 100 | 🚫 BLOCKED |
 
 ---
 
 ## 🚀 Rodando o projeto
 
-### Pré-requisito: Docker instalado
+### 🐳 Com Docker (recomendado)
 
 ```bash
-# Clone o repositório
 git clone https://github.com/QualyFerrer/risk-guard-api.git
 cd risk-guard-api
 
-# Sobe banco + aplicação
 docker compose up --build
 ```
 
-A API estará disponível em `http://localhost:8080`
-Documentação Swagger: `http://localhost:8080/swagger-ui.html`
+### 🌐 Acesso
 
-### Rodando localmente (sem Docker)
+* API: http://localhost:8081
+* Swagger: http://localhost:8081/swagger-ui.html
+
+---
+
+### 💻 Rodando localmente (sem Docker)
 
 ```bash
-# Sobe apenas o banco
 docker compose up postgres
 
-# Roda a aplicação pela IDE ou por:
 ./mvnw spring-boot:run
 ```
+
+### 🌐 Acesso local
+
+* API: http://localhost:8080
+* Swagger: http://localhost:8080/swagger-ui.html
 
 ---
 
 ## 📡 Endpoints
 
-### Autenticação
-| Método | Endpoint | Descrição | Auth |
-|---|---|---|---|
-| POST | `/api/auth/login` | Retorna token JWT | ❌ |
+### 🔐 Autenticação
 
-### Usuários
-| Método | Endpoint | Descrição | Auth |
-|---|---|---|---|
-| POST | `/api/users` | Cadastra novo usuário | ❌ |
-| GET | `/api/users/{id}` | Busca usuário por ID | ✅ |
-| GET | `/api/users` | Lista todos os usuários | ✅ |
-
-### Transações
-| Método | Endpoint | Descrição | Auth |
-|---|---|---|---|
-| POST | `/api/transactions/user/{userId}` | Processa transação com análise de fraude | ✅ |
-| GET | `/api/transactions/user/{userId}` | Histórico de transações | ✅ |
-| GET | `/api/transactions/alerts/user/{userId}` | Alertas de fraude gerados | ✅ |
+| Método | Endpoint          | Descrição         |
+| ------ | ----------------- | ----------------- |
+| POST   | `/api/auth/login` | Retorna token JWT |
 
 ---
 
-## 🔐 Autenticação
+### 👤 Usuários
+
+| Método | Endpoint          | Auth |
+| ------ | ----------------- | ---- |
+| POST   | `/api/users`      | ❌    |
+| GET    | `/api/users/{id}` | ✅    |
+| GET    | `/api/users`      | ✅    |
+
+---
+
+### 💳 Transações
+
+| Método | Endpoint                                 | Auth |
+| ------ | ---------------------------------------- | ---- |
+| POST   | `/api/transactions/user/{userId}`        | ✅    |
+| GET    | `/api/transactions/user/{userId}`        | ✅    |
+| GET    | `/api/transactions/alerts/user/{userId}` | ✅    |
+
+---
+
+## 🔐 Autenticação JWT
+
+### 1. Criar usuário
 
 ```bash
-# 1. Cria um usuário
-curl -X POST http://localhost:8080/api/users \
+curl -X POST http://localhost:8081/api/users \
   -H "Content-Type: application/json" \
   -d '{"fullName":"João Silva","email":"joao@email.com","password":"123456","initialBalance":5000}'
-
-# 2. Faz login e obtém o token
-curl -X POST http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"joao@email.com","password":"123456"}'
-
-# 3. Usa o token nas próximas requisições
-curl -X POST http://localhost:8080/api/transactions/user/1 \
-  -H "Authorization: Bearer SEU_TOKEN_AQUI" \
-  -H "Content-Type: application/json" \
-  -d '{"amount":500,"description":"Pagamento fornecedor"}'
 ```
 
 ---
 
-## 🛠️ Tecnologias
+### 2. Login
 
-- **Java 21** + **Spring Boot 3.3.5**
-- **Spring Security** + **JWT (JJWT 0.12.6)**
-- **Spring Data JPA** + **Hibernate**
-- **PostgreSQL 16**
-- **Bean Validation**
-- **Springdoc OpenAPI 2.6.0**
-- **JUnit 5** + **Mockito**
-- **Docker** + **Docker Compose**
+```bash
+curl -X POST http://localhost:8081/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"joao@email.com","password":"123456"}'
+```
+
+---
+
+### 3. Usar token
+
+```bash
+curl -X POST http://localhost:8081/api/transactions/user/1 \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI" \
+  -H "Content-Type: application/json" \
+  -d '{"amount":500,"description":"Pagamento fornecedor"}'
+```
 
 ---
 
@@ -134,7 +159,39 @@ curl -X POST http://localhost:8080/api/transactions/user/1 \
 
 ---
 
+## 🏗️ Arquitetura
+
+* Controller → Entrada da requisição
+* Service → Regras de negócio (motor de fraude)
+* Repository → Acesso ao banco
+* Security → JWT + filtros
+
+---
+
+## 🛠️ Tecnologias
+
+* Java 21
+* Spring Boot 3.3.5
+* Spring Security + JWT
+* Spring Data JPA + Hibernate
+* PostgreSQL
+* Springdoc OpenAPI (Swagger)
+* Docker + Docker Compose
+
+---
+
+## 💡 Diferenciais
+
+* Motor de fraude com regras desacopladas
+* API stateless com JWT
+* Pronta para escalar (containerizada)
+* Documentação automática com Swagger
+
+---
+
 ## 👨‍💻 Autor
 
 **César Ferrer**
-[![GitHub](https://img.shields.io/badge/GitHub-QualyFerrer-181717?style=flat-square&logo=github)](https://github.com/QualyFerrer)
+GitHub: https://github.com/QualyFerrer
+
+---
