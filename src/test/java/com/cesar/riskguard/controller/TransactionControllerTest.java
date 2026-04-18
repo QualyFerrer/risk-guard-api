@@ -14,17 +14,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-// IMPORTS ESTÁTICOS CORRETOS PARA MOCKMVC
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+        "spring.datasource.url=jdbc:postgresql://localhost:5432/riskguard",
+        "spring.datasource.username=riskguard_user",
+        "spring.datasource.password=riskguard_pass"
+})
 @AutoConfigureMockMvc
 class TransactionControllerTest {
 
@@ -54,9 +57,9 @@ class TransactionControllerTest {
         User user = new User();
         user.setFullName("Cesar Teste");
         user.setEmail("teste@email.com");
-        user.setPassword("123");
+        user.setPassword("$2a$10$hasheado");
         user.setBalance(BigDecimal.valueOf(20000));
-        user.setAverageTransactionAmount(BigDecimal.valueOf(100));
+        user.setAverageTransactionAmount(BigDecimal.valueOf(1000));
         user.setCreatedAt(LocalDateTime.now());
         user.setRole(Role.USER);
 
@@ -64,10 +67,11 @@ class TransactionControllerTest {
     }
 
     @Test
-    @DisplayName("Should block transaction and return 403 when amount is over risk limit")
+    @DisplayName("Should block transaction and return 403 when risk score is critical")
+    @WithMockUser
     void shouldReturn403WhenTransactionIsBlocked() throws Exception {
         TransactionRequestDTO dto = new TransactionRequestDTO();
-        dto.setAmount(15000.0); // Ativa Regra 1 (40) + Regra 3 (60) = 100 de score
+        dto.setAmount(15000.0);
         dto.setDescription("High risk transfer");
 
         mockMvc.perform(post("/api/transactions/user/" + savedUser.getId())
@@ -75,11 +79,12 @@ class TransactionControllerTest {
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.status").value("BLOCKED"))
-                .andExpect(jsonPath("$.riskScore").value(100)); // Valor ajustado para a lógica real
+                .andExpect(jsonPath("$.riskScore").value(100));
     }
 
     @Test
-    @DisplayName("Should approve normal transaction for registered user")
+    @DisplayName("Should approve normal transaction and return 201")
+    @WithMockUser
     void shouldApproveNormalTransaction() throws Exception {
         TransactionRequestDTO dto = new TransactionRequestDTO();
         dto.setAmount(50.0);
@@ -89,6 +94,21 @@ class TransactionControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("APPROVED"));
+                .andExpect(jsonPath("$.status").value("APPROVED"))
+                .andExpect(jsonPath("$.riskScore").value(0));
+    }
+
+    @Test
+    @DisplayName("Should return 404 when user does not exist")
+    @WithMockUser
+    void shouldReturn404WhenUserNotFound() throws Exception {
+        TransactionRequestDTO dto = new TransactionRequestDTO();
+        dto.setAmount(100.0);
+        dto.setDescription("Test");
+
+        mockMvc.perform(post("/api/transactions/user/99999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isNotFound());
     }
 }
