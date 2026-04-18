@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: riskguard-db
+    environment:
+      POSTGRES_DB: riskguard
+      POSTGRES_USER: riskguard_user
+      POSTGRES_PASSWORD: riskguard_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U riskguard_user -d riskguard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: riskguard-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/riskguard
+      SPRING_DATASOURCE_USERNAME: riskguard_user
+      SPRING_DATASOURCE_PASSWORD: riskguard_pass
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      JWT_SECRET: 3f8a2b1c9d4e7f0a6b5c2d8e1f4a7b3c9d2e5f8a1b4c7d0e3f6a9b2c5d8e1f4
+      JWT_EXPIRATION: 86400000
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres_data:
