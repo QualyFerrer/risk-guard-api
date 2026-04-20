@@ -20,10 +20,9 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, PasswordEncoder passwordEncoder1) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder1;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public UserResponseDTO register(UserRegisterDTO dto) {
@@ -34,7 +33,7 @@ public class UserService {
         User user = new User();
         user.setFullName(dto.getFullName());
         user.setEmail(dto.getEmail());
-        user.setPassword(passwordEncoder.encode(dto.getPassword()));
+        user.setPassword(passwordEncoder.encode(dto.getPassword())); //
         user.setBalance(BigDecimal.valueOf(dto.getInitialBalance()));
         user.setAverageTransactionAmount(BigDecimal.ZERO);
         user.setRole(Role.USER);
@@ -57,13 +56,13 @@ public class UserService {
                 .toList();
     }
 
-    public UserResponseDTO toResponseDTO(User user) {
+    private UserResponseDTO toResponseDTO(User user) {
         UserResponseDTO dto = new UserResponseDTO();
         dto.setId(user.getId());
         dto.setFullName(user.getFullName());
         dto.setEmail(user.getEmail());
         dto.setBalance(user.getBalance().doubleValue());
-        dto.setCreatedAt(LocalDateTime.now());
+        dto.setCreatedAt(user.getCreatedAt());
         return dto;
     }
 }
